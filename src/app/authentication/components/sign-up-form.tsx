@@ -45,13 +45,13 @@ const SignUpForm = () => {
             password: values.password,
             fetchOptions: {
                 onSuccess: () => {
-                    // toast.success("Conta Criada com sucesso!")
+                    toast.success("Conta Criada com sucesso!")
                     router.push("/")
                 },
                 onError: (error) => {
                     if(error.error.code === "USER_ALREADY_EXISTS"){
-                        toast.error("Email já cadastrado.")
-                        form.setError("email", {
+                        toast.error("Email já cadastrado.")                        
+                        return form.setError("email", {
                             message: "Email já cadastrado.",
                         })
                     }
