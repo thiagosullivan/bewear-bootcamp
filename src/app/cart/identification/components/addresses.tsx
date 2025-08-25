@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useCreateShippingAddress } from "@/hooks/mutations/use-create-shipping-address";
 
 const addressFormSchema = z.object({
   email: z.email("Email inválido"),
@@ -38,7 +39,7 @@ type AddressFormValues = z.infer<typeof addressFormSchema>;
 
 const Addresses = () => {
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
-  console.log(selectedAddress, "teste");
+  const createShippingAddressMutation = useCreateShippingAddress();
 
   const form = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
@@ -57,8 +58,14 @@ const Addresses = () => {
     },
   });
 
-  const onSubmit = (values: AddressFormValues) => {
-    console.log(values);
+  const onSubmit = async (values: AddressFormValues) => {
+    try {
+      await createShippingAddressMutation.mutateAsync(values);
+      form.reset();
+      setSelectedAddress(null);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+    }
   };
 
   return (
@@ -128,14 +135,11 @@ const Addresses = () => {
                           <FormLabel>CPF</FormLabel>
                           <FormControl>
                             <PatternFormat
-                              customInput={Input}
                               format="###.###.###-##"
                               mask="_"
                               placeholder="000.000.000-00"
-                              onValueChange={(values) => {
-                                field.onChange(values.value);
-                              }}
-                              value={field.value}
+                              customInput={Input}
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -151,14 +155,11 @@ const Addresses = () => {
                           <FormLabel>Celular</FormLabel>
                           <FormControl>
                             <PatternFormat
-                              customInput={Input}
                               format="(##) #####-####"
                               mask="_"
-                              placeholder="(00) 00000-0000"
-                              onValueChange={(values) => {
-                                field.onChange(values.value);
-                              }}
-                              value={field.value}
+                              placeholder="(11) 99999-9999"
+                              customInput={Input}
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -178,10 +179,7 @@ const Addresses = () => {
                               format="#####-###"
                               mask="_"
                               placeholder="00000-000"
-                              onValueChange={(values) => {
-                                field.onChange(values.value);
-                              }}
-                              value={field.value}
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -278,7 +276,14 @@ const Addresses = () => {
                   </div>
 
                   <div className="flex justify-end pt-4">
-                    <Button type="submit">Salvar Endereço</Button>
+                    <Button
+                      type="submit"
+                      disabled={createShippingAddressMutation.isPending}
+                    >
+                      {createShippingAddressMutation.isPending
+                        ? "Salvando..."
+                        : "Salvar Endereço"}
+                    </Button>
                   </div>
                 </form>
               </Form>
