@@ -1,11 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { PatternFormat } from "react-number-format";
 import z from "zod";
 
+import { getCart } from "@/actions/get-cart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,6 +23,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { shippingAddressTable } from "@/db/schema";
 import { useCreateShippingAddress } from "@/hooks/mutations/use-create-shipping-address";
+import { useUpdateCartShippingAddress } from "@/hooks/mutations/use-update-cart-shipping-address";
+import { useCart } from "@/hooks/queries/use-cart";
 import { useShippingAddresses } from "@/hooks/queries/use-shipping-addresses";
 
 const addressFormSchema = z.object({
@@ -41,11 +45,21 @@ type AddressFormValues = z.infer<typeof addressFormSchema>;
 
 interface AddressProps {
   userShippingAddresses: (typeof shippingAddressTable.$inferSelect)[];
+  defaultShippingAddressId: string | null;
 }
 
-const Addresses = ({ userShippingAddresses }: AddressProps) => {
-  const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+const Addresses = ({
+  userShippingAddresses,
+  defaultShippingAddressId,
+}: AddressProps) => {
+  const [selectedAddress, setSelectedAddress] = useState<string | null>(
+    defaultShippingAddressId || null
+  );
+  const [isAddressUpdated, setIsAddressUpdated] = useState(
+    !!defaultShippingAddressId
+  );
   const createShippingAddressMutation = useCreateShippingAddress();
+  const updateCartShippingAddressMutation = useUpdateCartShippingAddress();
   const { data: shippingAddresses, isLoading } = useShippingAddresses({
     initialData: userShippingAddresses,
   });
@@ -69,12 +83,34 @@ const Addresses = ({ userShippingAddresses }: AddressProps) => {
 
   const onSubmit = async (values: AddressFormValues) => {
     try {
-      await createShippingAddressMutation.mutateAsync(values);
+      const newAddress = await createShippingAddressMutation.mutateAsync(
+        values
+      );
+      if (newAddress?.id) {
+        await updateCartShippingAddressMutation.mutateAsync(newAddress.id);
+        setIsAddressUpdated(true);
+        setSelectedAddress(newAddress.id);
+      }
       form.reset();
-      setSelectedAddress(null);
     } catch (error) {
       console.error("Error submitting form:", error);
     }
+  };
+
+  const handleExistingAddressSelect = async (addressId: string) => {
+    try {
+      await updateCartShippingAddressMutation.mutateAsync(addressId);
+      setIsAddressUpdated(true);
+    } catch (error) {
+      console.error("Error updating cart shipping address:", error);
+      setIsAddressUpdated(false);
+    }
+  };
+
+  const handlePaymentRedirect = () => {
+    // Aqui você pode adicionar a lógica para redirecionar para a página de pagamento
+    // Por exemplo: router.push('/cart/payment')
+    console.log("Redirecionando para pagamento...");
   };
 
   return (
@@ -90,7 +126,15 @@ const Addresses = ({ userShippingAddresses }: AddressProps) => {
         ) : (
           <RadioGroup
             value={selectedAddress}
-            onValueChange={setSelectedAddress}
+            onValueChange={(value) => {
+              setSelectedAddress(value);
+              if (value && value !== "add_new") {
+                setIsAddressUpdated(true);
+                handleExistingAddressSelect(value);
+              } else {
+                setIsAddressUpdated(false);
+              }
+            }}
           >
             {shippingAddresses && shippingAddresses.length > 0 ? (
               shippingAddresses.map((address) => (
@@ -326,15 +370,33 @@ const Addresses = ({ userShippingAddresses }: AddressProps) => {
                       type="submit"
                       disabled={createShippingAddressMutation.isPending}
                     >
-                      {createShippingAddressMutation.isPending
-                        ? "Salvando..."
-                        : "Salvar Endereço"}
+                      {createShippingAddressMutation.isPending ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        "Salvar Endereço"
+                      )}
                     </Button>
                   </div>
                 </form>
               </Form>
             </CardContent>
           </Card>
+        )}
+
+        {selectedAddress && selectedAddress !== "add_new" && (
+          <div className="flex mt-4">
+            <Button
+              onClick={handlePaymentRedirect}
+              disabled={updateCartShippingAddressMutation.isPending}
+              className="w-full"
+            >
+              {updateCartShippingAddressMutation.isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "Ir para pagamento"
+              )}
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
