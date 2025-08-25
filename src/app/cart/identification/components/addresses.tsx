@@ -2,9 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { PatternFormat } from "react-number-format";
+import { toast } from "sonner";
 import z from "zod";
 
 import { getCart } from "@/actions/get-cart";
@@ -26,6 +28,8 @@ import { useCreateShippingAddress } from "@/hooks/mutations/use-create-shipping-
 import { useUpdateCartShippingAddress } from "@/hooks/mutations/use-update-cart-shipping-address";
 import { useCart } from "@/hooks/queries/use-cart";
 import { useShippingAddresses } from "@/hooks/queries/use-shipping-addresses";
+
+import { formatAddress } from "../../helpers/address";
 
 const addressFormSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -52,6 +56,8 @@ const Addresses = ({
   userShippingAddresses,
   defaultShippingAddressId,
 }: AddressProps) => {
+  const router = useRouter();
+
   const [selectedAddress, setSelectedAddress] = useState<string | null>(
     defaultShippingAddressId || null
   );
@@ -108,9 +114,15 @@ const Addresses = ({
   };
 
   const handlePaymentRedirect = () => {
-    // Aqui você pode adicionar a lógica para redirecionar para a página de pagamento
-    // Por exemplo: router.push('/cart/payment')
-    console.log("Redirecionando para pagamento...");
+    if (!selectedAddress || selectedAddress === "add_new") return;
+
+    try {
+      toast.success("Endereço selecionado para entrega!");
+      router.push("/cart/confirmation");
+    } catch (error) {
+      toast.error("Erro ao selecionar endereço. Tente novamente.");
+      console.log(error);
+    }
   };
 
   return (
@@ -143,14 +155,7 @@ const Addresses = ({
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value={address.id} id={address.id} />
                       <Label htmlFor={address.id} className="cursor-pointer">
-                        <p className="text-sm">
-                          {address.recipientName} - {address.street},{" "}
-                          {address.number}
-                          {address.complement &&
-                            `, ${address.complement}`} - {address.neighborhood},{" "}
-                          {address.city} - {address.state} - CEP:{" "}
-                          {address.zipCode}
-                        </p>
+                        <p className="text-sm">{formatAddress(address)}</p>
                       </Label>
                     </div>
                   </CardContent>
