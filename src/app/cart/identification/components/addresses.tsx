@@ -20,9 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCreateShippingAddress } from "@/hooks/mutations/use-create-shipping-address";
+import { useShippingAddresses } from "@/hooks/queries/use-shipping-addresses";
 
 const addressFormSchema = z.object({
-  email: z.email("Email inválido"),
+  email: z.string().email("Email inválido"),
   fullName: z.string().min(1, "Nome completo é obrigatório"),
   cpf: z.string().min(14, "CPF é obrigatório"),
   phone: z.string().min(15, "Celular é obrigatório"),
@@ -40,6 +41,7 @@ type AddressFormValues = z.infer<typeof addressFormSchema>;
 const Addresses = () => {
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const createShippingAddressMutation = useCreateShippingAddress();
+  const { data: shippingAddresses, isLoading } = useShippingAddresses();
 
   const form = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
@@ -74,16 +76,53 @@ const Addresses = () => {
         <CardTitle>Identificação</CardTitle>
       </CardHeader>
       <CardContent>
-        <RadioGroup value={selectedAddress} onValueChange={setSelectedAddress}>
-          <Card>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="add_new" id="add_new" />
-                <Label htmlFor="add_new">Adicionar novo endereço</Label>
+        {isLoading ? (
+          <div className="text-center py-4 text-muted-foreground">
+            Carregando endereços...
+          </div>
+        ) : (
+          <RadioGroup
+            value={selectedAddress}
+            onValueChange={setSelectedAddress}
+          >
+            {shippingAddresses && shippingAddresses.length > 0 ? (
+              shippingAddresses.map((address) => (
+                <Card key={address.id} className="mb-3">
+                  <CardContent>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value={address.id} id={address.id} />
+                      <Label htmlFor={address.id} className="cursor-pointer">
+                        <p className="text-sm">
+                          {address.recipientName} - {address.street},{" "}
+                          {address.number}
+                          {address.complement &&
+                            `, ${address.complement}`} - {address.neighborhood},{" "}
+                          {address.city} - {address.state} - CEP:{" "}
+                          {address.zipCode}
+                        </p>
+                      </Label>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                Nenhum endereço cadastrado
               </div>
-            </CardContent>
-          </Card>
-        </RadioGroup>
+            )}
+
+            <Card>
+              <CardContent>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="add_new" id="add_new" />
+                  <Label htmlFor="add_new" className="cursor-pointer">
+                    Adicionar novo endereço
+                  </Label>
+                </div>
+              </CardContent>
+            </Card>
+          </RadioGroup>
+        )}
         {selectedAddress === "add_new" && (
           <Card className="mt-4">
             <CardHeader>
