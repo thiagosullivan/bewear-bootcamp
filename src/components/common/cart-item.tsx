@@ -52,7 +52,7 @@ const CartItem = ({
   const handleIncreaseQuantityClick = () => {
     increaseCartProductQuantityMutation.mutate(undefined, {
       onSuccess: () => {
-        toast.success("Quantidade de produto diminuida.");
+        toast.success("Quantidade de produto aumentada.");
       },
       onError: () => {
         toast.error("Erro ao remover produto do carrinho.");
